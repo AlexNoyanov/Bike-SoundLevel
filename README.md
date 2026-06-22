@@ -45,6 +45,11 @@ If pairing fails, forget the device on the iPhone, power-cycle the ESP32, and tr
 
 ## Notes
 
+## Testing and experiments
+In the series of tests there was such a cool feature I really loved:
+
+
+
 - Uses [ESP32-BLE-Keyboard](https://github.com/T-vK/ESP32-BLE-Keyboard) with NimBLE. A build script patches the library for reliable ESP32-C3 + iOS pairing.
 - Volume changes are limited to one step every 80 ms so rapid spins do not flood BLE.
 - Some apps ignore system volume keys; test with Apple Music or the lock-screen player first.
