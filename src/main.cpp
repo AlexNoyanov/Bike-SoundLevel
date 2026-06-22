@@ -1,9 +1,11 @@
 /*
  * Bike Sound Level — ESP32-C3 Super Mini + KY-040 rotary encoder
  *
- * BLE HID media remote for iPhone:
- *   Rotate CW/CCW  → volume up / down
- *   Press encoder  → play / pause
+ * BLE HID media remote for iPhone (AirPods-style controls):
+ *   Rotate CW/CCW     → volume up / down
+ *   1× press encoder  → play / pause
+ *   2× press encoder  → next track
+ *   3× press encoder  → previous track
  *
  * Wiring (KY-040 → ESP32-C3):
  *   SW  (button) → GPIO 5
@@ -17,7 +19,7 @@
 
 #include <Arduino.h>
 #include <HijelHID_BLEKeyboard.h>
-
+  
 // --- pins ---
 static const uint8_t PIN_SW = 5;
 static const uint8_t PIN_DT = 6;
@@ -25,6 +27,7 @@ static const uint8_t PIN_CLK = 7;
 
 // --- timing ---
 static const uint32_t DEBOUNCE_MS = 50;
+static const uint32_t MULTI_CLICK_GAP_MS = 400;
 
 // KY-040: 4 quadrature transitions per detent (one physical click)
 static const int8_t DETENT_TICKS = 4;
@@ -59,6 +62,26 @@ void sendVolume(int8_t direction) {
   }
 }
 
+void handleButtonClicks(uint8_t clicks) {
+  if (!keyboard.isPaired()) {
+    return;
+  }
+  switch (clicks) {
+    case 1:
+      keyboard.tap(MEDIA_PLAY_PAUSE);
+      Serial.println("Play / pause");
+      break;
+    case 2:
+      keyboard.tap(MEDIA_NEXT_TRACK);
+      Serial.println("Next track");
+      break;
+    default:
+      keyboard.tap(MEDIA_PREV_TRACK);
+      Serial.println("Previous track");
+      break;
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   delay(500);
@@ -80,6 +103,8 @@ void loop() {
   static bool buttonStable = HIGH;
   static bool buttonLastRead = HIGH;
   static uint32_t buttonChangeMs = 0;
+  static uint8_t clickCount = 0;
+  static uint32_t lastClickMs = 0;
 
   // --- encoder → one volume step per detent ---
   int32_t raw = 0;
@@ -96,7 +121,7 @@ void loop() {
     lastHandledRaw -= DETENT_TICKS;
   }
 
-  // --- button → play/pause (debounced, active LOW) ---
+  // --- button → multi-click (count on release, active LOW) ---
   bool reading = digitalRead(PIN_SW);
   if (reading != buttonLastRead) {
     buttonChangeMs = millis();
@@ -104,11 +129,18 @@ void loop() {
   buttonLastRead = reading;
 
   if (millis() - buttonChangeMs >= DEBOUNCE_MS && reading != buttonStable) {
+    const bool wasPressed = (buttonStable == LOW);
     buttonStable = reading;
-    if (buttonStable == LOW && keyboard.isPaired()) {
-      keyboard.tap(MEDIA_PLAY_PAUSE);
-      Serial.println("Play / pause");
+
+    if (wasPressed && buttonStable == HIGH) {
+      clickCount = (clickCount < 3) ? clickCount + 1 : 3;
+      lastClickMs = millis();
     }
+  }
+
+  if (clickCount > 0 && millis() - lastClickMs >= MULTI_CLICK_GAP_MS) {
+    handleButtonClicks(clickCount);
+    clickCount = 0;
   }
 
   static bool wasPaired = false;

@@ -6,7 +6,9 @@ ESP32-C3 Super Mini firmware that pairs with an iPhone over BLE and acts as a me
 |--------|--------|
 | Rotate clockwise | Volume up |
 | Rotate counter-clockwise | Volume down |
-| Press encoder knob | Play / pause |
+| 1× press encoder | Play / pause |
+| 2× press encoder | Next track |
+| 3× press encoder | Previous track |
 
 ## Wiring
 
